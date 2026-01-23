@@ -1,0 +1,29 @@
+monoid per user summary {
+    emits join  when event.member_join
+    emits leave when event.member_leave
+}
+
+reduce per user fsm using summary {
+    state = outside
+    delta = 0
+
+    on summary.join {
+        when state==outside => { state=inside, delta=+1 }
+        when state==inside  => { delta=0 }
+    }
+
+    on summary.leave {
+        when state==inside => { state=outside, delta=-1 }
+        when state==outside => { delta=0 }
+    }
+
+    yield delta
+}
+
+metric members_24h {
+  from events
+  using fsm
+  aggregate sum(delta)
+  group by time(1h)
+  range 24h
+}
